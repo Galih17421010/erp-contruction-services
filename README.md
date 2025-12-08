@@ -1,7 +1,8 @@
-## ERP CONTRUCTION SERVICE  built with Laravel
+# ERP CONTRUCTION SERVICE  built with Laravel
 
-# Structure
+## Structure
 
+`
 app/
 ├── Http/
 │   └── Controllers/
@@ -31,3 +32,4 @@ app/
     ├── Employee.php
     ├── Attendance.php
     └── Expense.php
+`
