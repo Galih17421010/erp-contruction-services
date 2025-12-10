@@ -3,11 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class InventoryController extends Controller
 {
+    private function generateItemCode(){
+        $lastItem = Inventory::latest('id')->first();
+        $number = $lastItem ? intval(substr($lastItem->item_code, 4)) + 1 : 1;
+
+        return 'ITEM' . str_pad($number, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function determineStatus($quantity, $minimumStock){
+        if ($quantity <= 0) {
+            return 'out_of_stock';
+        } elseif ($quantity <= $minimumStock) {
+            return 'low_stock';
+        } else {
+            return 'available';
+        }
+    }
+
     public function index(Request $request)
     {
         $query = Inventory::query();
@@ -116,8 +134,45 @@ class InventoryController extends Controller
         DB::beginTransaction();
         try {
             // Calculate new quantity
-        } catch (\Throwable $th) {
-            //throw $th;
+            $oldQuantity = $inventory->quantity;
+
+            if ($validated['movement_type'] == 'in' || $validated['movement_type'] == 'adjustment') {
+                $newQuantity = $oldQuantity + $validated['quantity'];
+            } else {
+                if ($oldQuantity < $validated['quantity']) {
+                    return back()->with('error', 'Stok tidak mencukupi');
+                }
+                $newQuantity = $oldQuantity - $validated['quantity'];
+            }
+
+            // Update inventory
+            $inventory->quantity = $newQuantity;
+            $inventory->status = $this->determineStatus($newQuantity, $inventory->minimum_stock);
+            $inventory->save();
+
+            // Stock movement record 
+            StockMovement::create([
+                'inventory_id' => $inventory->id,
+                'project_id' => $validated['project_id'],
+                'movement_type' => $validated['movement_type'],
+                'quantity' => $validated['quantity'],
+                'reference_number' => $validated['reference_number'],
+                'notes' => $validated['notes'],
+                'created_by' => auth()->id()
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', 'Stock berhasil ditambahkan');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
+    }
+
+    public function lowStock(){
+        $inventories = Inventory::lowStock()->get();
+
+        return view('inventory.low-stock', compact('inventories'));
     }
 }
