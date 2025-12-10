@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\PurchaseOrderController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,5 +17,15 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('dashboard');
+})->name('dashboard');
+
+Route::resource('customers', CustomerController::class);
+Route::get('customers/{customer}/projects', [CustomerController::class, 'projects'])->name('customers.projects');
+
+Route::resource('projects', ProjectController::class);
+Route::post('projects/{project}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.update-status');
+Route::get('projects/{project}/timeline', [ProjectController::class, 'timeline'])->name('projects.timeline');
+
+Route::resource('purchase-orders', PurchaseOrderController::class);
+Route::post('purchase-orders/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive'])->name('purchase-order.receive');
